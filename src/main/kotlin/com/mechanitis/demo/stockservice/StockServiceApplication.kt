@@ -16,6 +16,18 @@ import java.time.LocalDateTime.now
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ThreadLocalRandom
 
+/**
+ * created a simple Kotlin Spring Boot application
+ * that uses Reactive Streams to emit a randomly generated stock price once a second.
+ *
+ * https://blog.jetbrains.com/idea/2019/10/tutorial-reactive-spring-boot-a-kotlin-rest-service/
+ * Run the application to see it start up correctly.
+ * Open up a web browser and navigate to http://localhost:8080/stocks/DEMO,
+ * you should see the events tick once a second, and see the stock price represented as a JSON string:
+ * data:{"symbol":"DEMO","price":89.06318870033823,"time":"2019-10-17T17:00:25.506109"}
+ *
+ */
+
 @SpringBootApplication
 class StockServiceApplication
 
@@ -27,7 +39,8 @@ fun main(args: Array<String>) {
 class RestController(val priceService: PriceService) {
 
     @GetMapping(value = ["/stocks/{symbol}"],
-                produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
+            // create a server-sent events streaming endpoint
+            produces = [MediaType.TEXT_EVENT_STREAM_VALUE])
     fun prices(@PathVariable symbol: String) = priceService.generatePrices(symbol)
 
 }
@@ -42,17 +55,17 @@ class RSocketController(val priceService: PriceService) {
 @Service
 class PriceService {
     private val prices = ConcurrentHashMap<String, Flux<StockPrice>>()
-
+    //create a Flux which emits one randomly generated price every second
     fun generatePrices(symbol: String): Flux<StockPrice> {
         return prices.computeIfAbsent(symbol) {
             Flux
-                .interval(Duration.ofSeconds(1))
-                .map { StockPrice(symbol, randomStockPrice(), now()) }
-                .share()
+                    .interval(Duration.ofSeconds(1))
+                    .map { StockPrice(symbol, randomStockPrice(), now()) }
+                    .share()
         }
     }
 
-    private fun randomStockPrice(): Double {
+    private fun randomStockPrice(): Double {// generate a number between zero and one hundred
         return ThreadLocalRandom.current().nextDouble(100.0)
     }
 }
